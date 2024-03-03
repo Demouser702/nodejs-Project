@@ -1,51 +1,27 @@
-const fs = require("fs/promises");
-const path = require("path");
-const contactsPath = path.resolve(__dirname, "contacts.json");
+const { default: mongoose } = require("mongoose");
+const contactSchema = new mongoose.Schema({
+  name: {
+    type: String,
 
-const listContacts = async () => {
-  const contacts = JSON.parse(await fs.readFile(contactsPath, "utf-8"));
-  return contacts;
-};
-const getContactById = async (contactId) => {
-  const contacts = await listContacts();
-  return contacts.find((contact) => contact.id === contactId);
-};
+    minlength: 1,
+    maxlength: 50,
+  },
+  email: {
+    type: String,
 
-const removeContact = async (contactId) => {
-  const contacts = await listContacts();
-  const updatedContacts = contacts.filter(
-    (contact) => contact.id !== contactId
-  );
-  if (contacts.length === updatedContacts.length) {
-    return false;
-  }
-  await fs.writeFile(contactsPath, JSON.stringify(updatedContacts, null, 2));
-  return true;
-};
+    minlength: 1,
+    maxlength: 50,
+  },
+  phone: {
+    type: String,
 
-const addContact = async (body) => {
-  const contacts = await listContacts();
-  const newContact = { id: Date.now().toString(), ...body };
-  contacts.push(newContact);
-  await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-  return newContact;
-};
+    minlength: 8,
+  },
+  favorite: {
+    type: Boolean,
+    default: false,
+  },
+});
 
-const updateContact = async (contactId, body) => {
-  const contacts = await listContacts();
-  const index = contacts.findIndex((contact) => contact.id === contactId);
-  if (index === -1) {
-    return null;
-  }
-  contacts[index] = { ...contacts[index], ...body };
-  await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-  return contacts[index];
-};
-
-module.exports = {
-  listContacts,
-  getContactById,
-  removeContact,
-  addContact,
-  updateContact,
-};
+const Contact = mongoose.model("Contact", contactSchema);
+module.exports = Contact;

@@ -2,20 +2,13 @@ const { default: mongoose } = require("mongoose");
 const contactSchema = new mongoose.Schema({
   name: {
     type: String,
-
-    minlength: 1,
-    maxlength: 50,
+    required: [true, "Set name for contact"],
   },
   email: {
     type: String,
-
-    minlength: 1,
-    maxlength: 50,
   },
   phone: {
     type: String,
-
-    minlength: 8,
   },
   favorite: {
     type: Boolean,

@@ -6,7 +6,8 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
 
-const contactsRouter = require("./routes/api/contacts");
+const contactsRouter = require("./routes/api/contactsRouter.js");
+const userRouter = require("./routes/api/userRouter.js");
 const { connectToDb } = require("./db");
 const cors = require("cors");
 const app = express();
@@ -22,7 +23,9 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
 app.use("/api/contacts", contactsRouter);
+app.use("/api/users", userRouter);
 
 app.use(function (req, res, next) {
   next(createError(404));

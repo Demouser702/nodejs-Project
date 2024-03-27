@@ -1,10 +1,20 @@
-const Contact = require("../models/contacts.js");
+const Contact = require("../models/contacts");
 
 exports.listContacts = async (req, res) => {
   try {
-    const contacts = await Contact.find().exec();
-    res.json(contacts);
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const contacts = await Contact.find().skip(skip).limit(limit).exec();
+    const totalContacts = await Contact.countDocuments();
+
+    res.json({
+      contacts,
+      totalPages: Math.ceil(totalContacts / limit),
+      currentPage: page,
+    });
   } catch (error) {
+    console.error("Error fetching contacts:", error);
     res
       .status(500)
       .json({ message: "Error fetching contacts from the database" });

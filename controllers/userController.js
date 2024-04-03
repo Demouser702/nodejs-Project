@@ -3,6 +3,10 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const dotenv = require("dotenv");
 const Joi = require("joi");
+const gravatar = require("gravatar");
+const jimp = require("jimp");
+const path = require("path");
+const fs = require("fs");
 
 dotenv.config();
 const saltRounds = 10;
@@ -17,7 +21,7 @@ const validateAuthSchema = (user) => {
   return schema.validate(user);
 };
 exports.signup = async (req, res) => {
-  const { error } = validateAuthSchema.validate(req.body);
+  const { error } = validateAuthSchema(req.body);
   if (error) {
     return res.status(400).json({ message: error.details[0].message });
   }
@@ -29,9 +33,11 @@ exports.signup = async (req, res) => {
       return res.status(409).send("Email in use");
     }
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const avatarURL = gravatar.url(email);
     const newUser = new User({
       email: req.body.email,
       password: hashedPassword,
+      avatarURL,
     });
 
     await newUser.save();
@@ -41,6 +47,7 @@ exports.signup = async (req, res) => {
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
@@ -51,7 +58,7 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { error } = validateAuthSchema.validate(req.body);
+    const { error } = validateAuthSchema(req.body);
     if (error) {
       return res.status(400).json({ message: error.details[0].message });
     }
@@ -139,5 +146,52 @@ exports.updateSubscription = async (req, res) => {
     });
   } catch (error) {
     res.status(500).send("Error updating subscription");
+  }
+};
+
+exports.updateAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    const tmpPath = req.file.path;
+    const targetPath = path.join(__dirname, "..", "tmp", req.file.filename);
+    fs.rename(tmpPath, targetPath, async (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error moving file" });
+      }
+      try {
+        const image = await jimp.read(targetPath);
+        await image.resize(250, 250).write(targetPath);
+        const avatarFileName = `${req.user._id}-${req.file.originalname}`;
+        const avatarURL = `/avatars/${avatarFileName}`;
+        const avatarPath = path.join(
+          __dirname,
+          "..",
+          "public",
+          "avatars",
+          avatarFileName
+        );
+        fs.rename(targetPath, avatarPath, async (err) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({ message: "Error moving file" });
+          }
+
+          // Update user's avatarURL in the database
+          req.user.avatarURL = avatarURL;
+          await req.user.save();
+
+          res.status(200).json({ avatarURL });
+        });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Error processing image" });
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(401).send("Not authorized");
   }
 };

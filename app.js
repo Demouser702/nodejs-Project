@@ -12,6 +12,9 @@ const { connectToDb } = require("./db");
 const cors = require("cors");
 const app = express();
 
+const multer = require("multer");
+const upload = multer({ dest: "public/avatars" }).single("avatar");
+
 connectToDb();
 
 app.set("views", path.join(__dirname, "views"));
@@ -26,6 +29,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/api/contacts", contactsRouter);
 app.use("/api/users", userRouter);
+app.use(upload);
 
 app.use(function (req, res, next) {
   next(createError(404));

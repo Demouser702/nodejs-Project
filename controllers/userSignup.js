@@ -7,7 +7,6 @@ const gravatar = require("gravatar");
 const jimp = require("jimp");
 const path = require("path");
 const fs = require("fs");
-const uuid = require("uuid");
 const sendEmailTo = require("../helpers/sendEmail");
 
 dotenv.config();
@@ -36,18 +35,19 @@ exports.signup = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const avatarURL = gravatar.url(email);
-    const verificationToken = uuid.v4();
-
+    const token = jwt.sign({ userId: user._id }, jwtSecret, {
+      expiresIn: "1h",
+    });
     const newUser = new User({
       email: req.body.email,
       password: hashedPassword,
       avatarURL,
-      verificationToken,
+      verificationToken: token,
     });
 
     await newUser.save();
-    const verificationLink = `http://localhost:8080/api/users/verify/${verificationToken}`;
-    sendEmailTo(newUser.email, verificationLink);
+
+    sendEmailTo(newUser.email, newUser.verificationToken);
 
     res.status(201).json({
       message: "User created successfully",
@@ -55,7 +55,6 @@ exports.signup = async (req, res) => {
         email: newUser.email,
         subscription: newUser.subscription,
         avatarURL: newUser.avatarURL,
-        verificationToken,
       },
     });
   } catch (error) {
@@ -104,8 +103,6 @@ exports.login = async (req, res) => {
         email: user.email,
         subscription: user.subscription,
       },
-      verificationToken: user.verificationToken,
-      verify: user.verify,
     });
   } catch (error) {
     console.error(error);
@@ -208,49 +205,60 @@ exports.updateAvatar = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   try {
     const { verificationToken } = req.params;
-    console.log(req.params);
     const user = await User.findOne({ verificationToken });
-    console.log(verificationToken);
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     user.verify = true;
     user.verificationToken = null;
+
     await user.save();
+
     res.status(200).json({ message: "Verification successful" });
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal server error");
   }
 };
-exports.resendVerificationEmail = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ message: "Missing required field email" });
-    }
-    const user = await User.findOne({ email });
-    console.log(user);
 
-    if (user.verify) {
-      return res
-        .status(400)
-        .json({ message: "Verification has already been passed" });
-    }
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    const verificationToken = uuid.v4();
-    user.verificationToken = verificationToken;
-    await user.save();
+// exports.signup = async (req, res) => {
+//   const { error } = validateAuthSchema(req.body);
+//   if (error) {
+//     return res.status(400).json({ message: error.details[0].message });
+//   }
+//   try {
+//     const { email, password } = req.body;
+//     const user = await User.findOne({ email });
 
-    const verificationLink = `http://localhost:8080/api/users/verify/${verificationToken}`;
-    sendEmailTo(user.email, verificationLink);
+//     if (user) {
+//       return res.status(409).send("Email in use");
+//     }
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+//     const avatarURL = gravatar.url(email);
+//     const newUser = new User({
+//       email: req.body.email,
+//       password: hashedPassword,
+//       avatarURL,
+//     });
 
-    res.status(200).json({ message: "Verification email sent" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Internal server error");
-  }
-};
+//     await newUser.save();
+//     const verificationToken = jwt.sign({ userId: newUser._id }, jwtSecret, {
+//       expiresIn: "1h",
+//     });
+//     sendEmailTo(newUser.email, verificationToken);
+
+//     res.status(201).json({
+//       message: "User created successfully",
+//       user: {
+//         email: newUser.email,
+//         subscription: newUser.subscription,
+//         avatarURL: newUser.avatarURL,
+//       },
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send("Error creating the user");
+//   }
+// };

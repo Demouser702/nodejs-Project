@@ -9,5 +9,7 @@ router.get("/logout", authMiddleware, userController.logout);
 router.get("/current", authMiddleware, userController.current);
 router.patch("/", authMiddleware, userController.updateSubscription);
 router.patch("/avatars", authMiddleware, userController.updateAvatar);
+router.get("/verify/:verificationToken", userController.verifyEmail);
+router.post("/verify", userController.resendVerificationEmail);
 
 module.exports = router;
